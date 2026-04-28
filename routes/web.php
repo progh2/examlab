@@ -4,6 +4,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\GoogleController;
 
 Route::get('/', function () {
+    return view('home');
+});
+
+Route::get('/welcome', function () {
     return view('welcome');
 });
 
