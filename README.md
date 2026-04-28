@@ -22,6 +22,16 @@ php artisan migrate
 php artisan serve
 ```
 
+### MySQL로 전환(옵션)
+- **Docker 사용 시**: 아래로 MySQL 8 컨테이너를 띄울 수 있습니다.
+```bash
+docker compose -f docker-compose.mysql.yml up -d
+```
+- 그 다음 `.env`에서 DB 설정을 MySQL로 바꾸고 마이그레이션을 실행합니다.
+```bash
+php artisan migrate:fresh --seed
+```
+
 ### Google 로그인 설정
 - Google Cloud Console에서 **OAuth 클라이언트(웹 애플리케이션)** 를 만들고 아래를 설정합니다.
   - **Authorized redirect URIs**: `http://localhost/auth/google/callback`

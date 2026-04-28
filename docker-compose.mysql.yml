@@ -1,0 +1,16 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: examlab-mysql
+    environment:
+      MYSQL_DATABASE: examlab
+      MYSQL_ROOT_PASSWORD: root
+      TZ: UTC
+    ports:
+      - "3306:3306"
+    volumes:
+      - examlab_mysql_data:/var/lib/mysql
+
+volumes:
+  examlab_mysql_data:
+
