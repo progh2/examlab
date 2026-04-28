@@ -9,47 +9,71 @@ use App\Models\QuestionStat;
 use App\Models\ReviewItem;
 use App\Models\SessionAnswer;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class PracticeService
 {
+    public const MODES = ['all', 'wrong', 'adaptive', 'review'];
+
     /**
      * @return PracticeSession
      */
     public static function startTodayReviewSession(int $tenantId, int $userId, int $limit = 20): PracticeSession
     {
+        return self::startSession('review', $tenantId, $userId, $limit);
+    }
+
+    public static function startSession(string $mode, int $tenantId, int $userId, int $limit = 20, ?int $examId = null): PracticeSession
+    {
         $now = CarbonImmutable::now();
-
-        $dueQuestionIds = ReviewItem::query()
-            ->where('tenant_id', $tenantId)
-            ->where('user_id', $userId)
-            ->where('suspended', false)
-            ->where('due_at', '<=', $now)
-            ->orderBy('due_at')
-            ->limit($limit)
-            ->pluck('question_id')
-            ->all();
-
-        // 첫 사용자는 due가 비어있을 수 있어, 데모/초기 사용을 위해 approved 문제를 일부 노출합니다.
-        if (count($dueQuestionIds) === 0) {
-            $dueQuestionIds = Question::query()
-                ->whereHas('exam', fn ($q) => $q->where('tenant_id', $tenantId))
-                ->where('qa_status', 'approved')
-                ->limit(min(10, $limit))
-                ->pluck('id')
-                ->all();
-        }
+        $mode = in_array($mode, self::MODES, true) ? $mode : 'all';
+        $questionIds = self::questionIdsForMode($mode, $tenantId, $userId, $limit, $examId);
 
         return PracticeSession::query()->create([
             'tenant_id' => $tenantId,
             'user_id' => $userId,
-            'mode' => 'review',
+            'mode' => $mode,
             'started_at' => $now,
             'meta' => [
-                'question_ids' => $dueQuestionIds,
+                'question_ids' => $questionIds,
                 'cursor' => 0,
+                'exam_id' => $examId,
             ],
         ]);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public static function questionIdsForMode(string $mode, int $tenantId, int $userId, int $limit = 20, ?int $examId = null): array
+    {
+        return match ($mode) {
+            'wrong' => self::wrongQuestionIds($tenantId, $userId, $limit, $examId),
+            'adaptive', 'review' => self::adaptiveQuestionIds($tenantId, $userId, $limit, $examId),
+            default => self::approvedQuestionQuery($tenantId, $examId)
+                ->orderBy('exam_id')
+                ->orderBy('id')
+                ->limit($limit)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all(),
+        };
+    }
+
+    public static function approvedQuestionCount(int $tenantId, ?int $examId = null): int
+    {
+        return self::approvedQuestionQuery($tenantId, $examId)->count();
+    }
+
+    public static function modeLabel(string $mode): string
+    {
+        return match ($mode) {
+            'wrong' => '오답 모드',
+            'adaptive' => '맞춤 모드',
+            'review' => '복습 모드',
+            default => '전체 모드',
+        };
     }
 
     /**
@@ -125,6 +149,10 @@ class PracticeService
         /** @var SessionAnswer $answer */
         $answer = $payload['answer'];
 
+        if ($answer->answered_at) {
+            return;
+        }
+
         $displayedToOriginal = $answer->choice_order ?? [];
         $originalChoiceIndex = (int) ($displayedToOriginal[$displayedChoiceIndex] ?? $displayedChoiceIndex);
 
@@ -180,11 +208,129 @@ class PracticeService
                 'due_at' => $isCorrect ? SpacedRepetition::nextDueAt($stage, $now) : SpacedRepetition::nextDueAt(0, $now),
             ])->save();
         });
+    }
 
-        // 커서 이동(다음 문제)
+    public static function advanceSession(PracticeSession $session): void
+    {
         $meta = $session->meta ?? [];
         $meta['cursor'] = ((int) ($meta['cursor'] ?? 0)) + 1;
-        $session->forceFill(['meta' => $meta])->save();
+        $questionIds = $meta['question_ids'] ?? [];
+        $endedAt = $session->ended_at;
+        if (is_array($questionIds) && (int) $meta['cursor'] >= count($questionIds)) {
+            $endedAt = CarbonImmutable::now();
+        }
+
+        $session->forceFill([
+            'meta' => $meta,
+            'ended_at' => $endedAt,
+        ])->save();
+    }
+
+    /**
+     * @return Builder<Question>
+     */
+    private static function approvedQuestionQuery(int $tenantId, ?int $examId = null): Builder
+    {
+        return Question::query()
+            ->whereHas('exam', function ($query) use ($tenantId, $examId) {
+                $query->where('tenant_id', $tenantId);
+                if ($examId) {
+                    $query->where('id', $examId);
+                }
+            })
+            ->where('qa_status', 'approved');
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private static function wrongQuestionIds(int $tenantId, int $userId, int $limit, ?int $examId = null): array
+    {
+        return QuestionStat::query()
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId)
+            ->where('wrong_count', '>', 0)
+            ->whereHas('question', fn ($query) => $query
+                ->where('qa_status', 'approved')
+                ->whereHas('exam', function ($examQuery) use ($tenantId, $examId) {
+                    $examQuery->where('tenant_id', $tenantId);
+                    if ($examId) {
+                        $examQuery->where('id', $examId);
+                    }
+                }))
+            ->orderByDesc('wrong_count')
+            ->orderByDesc('last_seen_at')
+            ->limit($limit)
+            ->pluck('question_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private static function adaptiveQuestionIds(int $tenantId, int $userId, int $limit, ?int $examId = null): array
+    {
+        $now = CarbonImmutable::now();
+
+        $dueIds = ReviewItem::query()
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId)
+            ->where('suspended', false)
+            ->where('due_at', '<=', $now)
+            ->whereHas('question', fn ($query) => $query
+                ->where('qa_status', 'approved')
+                ->whereHas('exam', function ($examQuery) use ($tenantId, $examId) {
+                    $examQuery->where('tenant_id', $tenantId);
+                    if ($examId) {
+                        $examQuery->where('id', $examId);
+                    }
+                }))
+            ->orderBy('due_at')
+            ->limit($limit)
+            ->pluck('question_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if (count($dueIds) >= $limit) {
+            return $dueIds;
+        }
+
+        $fallbackIds = QuestionStat::query()
+            ->where('tenant_id', $tenantId)
+            ->where('user_id', $userId)
+            ->whereNotIn('question_id', $dueIds)
+            ->whereHas('question', fn ($query) => $query
+                ->where('qa_status', 'approved')
+                ->whereHas('exam', function ($examQuery) use ($tenantId, $examId) {
+                    $examQuery->where('tenant_id', $tenantId);
+                    if ($examId) {
+                        $examQuery->where('id', $examId);
+                    }
+                }))
+            ->orderByDesc('wrong_streak')
+            ->orderByDesc('wrong_count')
+            ->orderBy('correct_count')
+            ->limit($limit - count($dueIds))
+            ->pluck('question_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $ids = array_values(array_unique([...$dueIds, ...$fallbackIds]));
+        if (count($ids) >= $limit) {
+            return array_slice($ids, 0, $limit);
+        }
+
+        $starterIds = self::approvedQuestionQuery($tenantId, $examId)
+            ->whereNotIn('id', $ids)
+            ->orderBy('exam_id')
+            ->orderBy('id')
+            ->limit($limit - count($ids))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_values(array_unique([...$ids, ...$starterIds]));
     }
 }
 

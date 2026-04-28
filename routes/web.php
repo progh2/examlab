@@ -16,12 +16,15 @@ Route::get('/welcome', function () {
 Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('auth.google.callback');
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware('auth')->name('dashboard');
-
 Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', [PracticeController::class, 'dashboard'])->name('dashboard');
     Route::get('/practice/today-review', [PracticeController::class, 'startTodayReview'])->name('practice.todayReview');
+    Route::get('/practice/{mode}', [PracticeController::class, 'startMode'])
+        ->whereIn('mode', ['all', 'wrong', 'adaptive', 'review'])
+        ->name('practice.start');
     Route::get('/practice/session/{session}', [PracticeController::class, 'showSession'])->name('practice.session');
     Route::post('/practice/session/{session}/answer', [PracticeController::class, 'submitAnswer'])->name('practice.answer');
+    Route::post('/practice/session/{session}/next', [PracticeController::class, 'nextQuestion'])->name('practice.next');
+    Route::get('/wrong-note', [PracticeController::class, 'wrongNote'])->name('wrong-note');
+    Route::get('/review-queue', [PracticeController::class, 'reviewQueue'])->name('review-queue');
 });
