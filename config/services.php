@@ -36,8 +36,10 @@ return [
     ],
 
     'google' => [
+        // Google Cloud Console에서 발급받은 OAuth 클라이언트 정보
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        // Google OAuth "Authorized redirect URIs"에 등록해야 합니다.
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 

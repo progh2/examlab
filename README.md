@@ -23,10 +23,14 @@ php artisan serve
 ```
 
 ### Google 로그인 설정
-- Google Cloud Console에서 OAuth 클라이언트를 만들고, `.env`에 아래 값을 채웁니다.
-  - `GOOGLE_CLIENT_ID`
-  - `GOOGLE_CLIENT_SECRET`
-  - `GOOGLE_REDIRECT_URI` (기본값: `http://localhost/auth/google/callback`)
+- Google Cloud Console에서 **OAuth 클라이언트(웹 애플리케이션)** 를 만들고 아래를 설정합니다.
+  - **Authorized redirect URIs**: `http://localhost/auth/google/callback`
+- 그리고 프로젝트의 `.env`에 아래 값을 채웁니다.
+  - `GOOGLE_CLIENT_ID` = 발급된 Client ID
+  - `GOOGLE_CLIENT_SECRET` = 발급된 Client Secret
+  - `GOOGLE_REDIRECT_URI` = `http://localhost/auth/google/callback`
+
+로그인은 `http://localhost:8000/auth/google`로 시작할 수 있습니다.
 
 ### 관리자(필라멘트) 계정 만들기
 ```bash

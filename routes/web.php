@@ -7,6 +7,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+// Google OAuth 로그인 시작/콜백
 Route::get('/auth/google', [GoogleController::class, 'redirect'])->name('auth.google.redirect');
 Route::get('/auth/google/callback', [GoogleController::class, 'callback'])->name('auth.google.callback');
 
