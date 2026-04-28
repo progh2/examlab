@@ -22,6 +22,13 @@ php artisan migrate
 php artisan serve
 ```
 
+### 데모 데이터(권장)
+초기에는 **Exam/문항 등 콘텐츠가 없으면 문제 등록/풀이가 거의 불가능**합니다. 아래로 데모 테넌트/시험/문항을 넣고 시작하세요.
+
+```bash
+php artisan migrate:fresh --seed
+```
+
 ### MySQL로 전환(옵션)
 - **Docker 사용 시**: 아래로 MySQL 8 컨테이너를 띄울 수 있습니다.
 ```bash
@@ -46,4 +53,12 @@ php artisan migrate:fresh --seed
 ```bash
 php artisan make:filament-user
 ```
+
+### 기본 관리자 계정(시드)
+`php artisan migrate:fresh --seed`를 실행하면 아래 계정이 생성됩니다.
+
+- **ID**: `admin@demo.local`
+- **PW**: `password`
+
+중요: 위 계정은 **로컬 데모용 기본값**입니다. 실제로 사용할 땐 반드시 **비밀번호를 변경**하거나, 새 관리자 계정을 만들어 사용하세요.
 
