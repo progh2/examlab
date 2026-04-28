@@ -13,11 +13,6 @@ class QuestionSetForm
     {
         return $schema
             ->components([
-                Select::make('tenant_id')
-                    ->relationship('tenant', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->required(),
                 Select::make('exam_id')
                     ->relationship('exam', 'id')
                     ->searchable()

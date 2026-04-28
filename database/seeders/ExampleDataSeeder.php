@@ -8,6 +8,7 @@ use App\Models\QuestionChoice;
 use App\Models\Section;
 use App\Models\Tenant;
 use App\Models\Topic;
+use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Database\Seeder;
 
@@ -24,6 +25,23 @@ class ExampleDataSeeder extends Seeder
                 'name' => 'Demo Academy',
             ],
         );
+
+        // 로컬 개발 편의를 위해, Filament 관리자용 기본 사용자(시드)를 하나 만들어 둡니다.
+        // 실제 운영에서는 `php artisan make:filament-user` 또는 Google 로그인으로 생성된 계정을 사용하세요.
+        $adminUser = User::query()->firstOrCreate(
+            ['email' => 'admin@demo.local'],
+            [
+                'name' => 'Demo Admin',
+                'password' => 'password',
+                'is_system_admin' => true,
+            ],
+        );
+
+        // 관리자 사용자를 demo 테넌트에 소속시키고, 현재 테넌트를 demo로 잡아줍니다.
+        $adminUser->tenants()->syncWithoutDetaching([
+            $tenant->id => ['role' => 'owner'],
+        ]);
+        $adminUser->forceFill(['current_tenant_id' => $tenant->id])->save();
 
         $examKo = Exam::query()->firstOrCreate(
             ['tenant_id' => $tenant->id, 'code' => 'INFO-PROC-CRAFT'],

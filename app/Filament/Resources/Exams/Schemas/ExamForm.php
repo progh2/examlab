@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Exams\Schemas;
 
 use Filament\Forms\Components\Group;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
@@ -13,11 +12,6 @@ class ExamForm
     {
         return $schema
             ->components([
-                Select::make('tenant_id')
-                    ->relationship('tenant', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->helperText('공용 시험이면 비워두고, 기관 전용 시험이면 테넌트를 선택합니다.'),
                 TextInput::make('code'),
                 Group::make()
                     ->schema([

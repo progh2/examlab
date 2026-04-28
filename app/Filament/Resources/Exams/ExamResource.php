@@ -8,7 +8,9 @@ use App\Filament\Resources\Exams\Pages\ListExams;
 use App\Filament\Resources\Exams\Schemas\ExamForm;
 use App\Filament\Resources\Exams\Tables\ExamsTable;
 use App\Models\Exam;
+use App\Support\TenantContext;
 use BackedEnum;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -28,6 +30,19 @@ class ExamResource extends Resource
     public static function table(Table $table): Table
     {
         return ExamsTable::configure($table);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $tenantId = TenantContext::currentTenantId();
+        if (!$tenantId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(function (Builder $q) use ($tenantId) {
+            $q->whereNull('tenant_id')->orWhere('tenant_id', $tenantId);
+        });
     }
 
     public static function getRelations(): array
