@@ -13,6 +13,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Pages\Page;
 use Filament\Forms\Form;
+use BackedEnum;
 use Illuminate\Support\Facades\DB;
 use League\Csv\Reader;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -23,7 +24,7 @@ class ImportQuestions extends Page
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-up-tray';
 
-    protected static ?string $navigationGroup = 'Content';
+    protected static string|BackedEnum|null $navigationGroup = 'Content';
 
     public ?int $examId = null;
 
