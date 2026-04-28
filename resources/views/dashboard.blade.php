@@ -13,6 +13,11 @@
 <p>
     <a href="/admin">관리자(Admin)로 이동</a>
 </p>
+
+<h2>학습</h2>
+<ul>
+    <li><a href="/practice/today-review">오늘 복습 시작</a></li>
+</ul>
 </body>
 </html>
 
