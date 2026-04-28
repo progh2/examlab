@@ -14,3 +14,22 @@
 ## 문서
 - 기획/설계: `docs/product-plan.md`
 
+## 로컬 실행(개발)
+```bash
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan serve
+```
+
+### Google 로그인 설정
+- Google Cloud Console에서 OAuth 클라이언트를 만들고, `.env`에 아래 값을 채웁니다.
+  - `GOOGLE_CLIENT_ID`
+  - `GOOGLE_CLIENT_SECRET`
+  - `GOOGLE_REDIRECT_URI` (기본값: `http://localhost/auth/google/callback`)
+
+### 관리자(필라멘트) 계정 만들기
+```bash
+php artisan make:filament-user
+```
+
