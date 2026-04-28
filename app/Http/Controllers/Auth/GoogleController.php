@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\InvalidStateException;
 
 class GoogleController extends Controller
 {
@@ -20,7 +21,18 @@ class GoogleController extends Controller
     {
         // Google이 redirect_uri로 돌려보낸 콜백을 처리합니다.
         // 이 시점에 access token 교환이 일어나고, Google 프로필 정보를 받습니다.
-        $googleUser = Socialite::driver('google')->user();
+        try {
+            $googleUser = Socialite::driver('google')->user();
+        } catch (InvalidStateException $e) {
+            // 로컬 개발 환경에서는 호스트/포트(127.0.0.1 vs localhost) 혼용이나 쿠키 설정으로 인해
+            // state 검증이 실패하는 경우가 있습니다. 로컬에서는 stateless로 우회해 개발을 계속할 수 있게 합니다.
+            // 운영 환경에서는 state 검증이 보안상 중요하므로 stateless를 사용하지 않습니다.
+            if (!app()->environment('local')) {
+                throw $e;
+            }
+
+            $googleUser = Socialite::driver('google')->stateless()->user();
+        }
 
         // 기존 계정이 있으면 재사용합니다.
         // - google_id가 이미 저장돼 있다면 그걸 우선
